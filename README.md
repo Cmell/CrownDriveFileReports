@@ -2,7 +2,7 @@
 
 These instructions are provided as a courtesy to Crown members. They assume familiarity with R, R markdown, and R Studio usage. They require updated versions of all software, including R, R Studio, all packages in the script, and Google Drive Desktop Client.
 
-You are free to use this script for any purpose. However, it is provided without any guarantees or offers of support. Crown members may request that the file report is generated for them by the Systems team by emailing [Chris Mellinger](christopher.mellinger@colorado.edu?subject=File%20Report%20Request). The team will generate reports and follow-up reports as capacity permits.
+You are free to use this script for any purpose. However, it is provided without any guarantees or offers of support. Crown members may request that the file report is generated for them by the Systems team by emailing [Chris Mellinger](mailto:christopher.mellinger@colorado.edu?subject=File%20Report%20Request). The team will generate reports and follow-up reports as capacity permits.
 
 **Instructions for running the report:**
 
