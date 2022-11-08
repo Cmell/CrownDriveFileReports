@@ -1,0 +1,490 @@
+---
+title: "File Path Report: `r basename(getwd())`"
+author: "Chris Mellinger"
+date: "Updated on `r lubridate::today()`"
+output: 
+  pdf_document:
+    latex_engine: xelatex
+geometry: margin=.5in
+classoption: landscape
+knit: (
+  function(inputFile, encoding) { 
+    rmarkdown::render(
+      inputFile, 
+      encoding = encoding,
+      output_file = file.path(
+      dirname(inputFile), 
+      stringr::str_c("./FileReport_", lubridate::today()),
+      'FileReport.pdf'
+      )
+    ) 
+  })
+---
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+library(tidyverse)
+library(flextable)
+library(ftExtra)
+library(googledrive)
+
+fileColWidth <- 8
+
+savePath <- str_c("./FileReport_", lubridate::today())
+
+if(!dir.exists(savePath)) {
+  dir.create(savePath)
+}
+
+knitr::opts_chunk$set(
+  echo=FALSE, warning=FALSE, message=FALSE
+)
+```
+
+```{r file listing via googledrive, eval = F}
+rootName <- getwd()
+dFiles <- drive_find(
+    shared_drive = shared_drive_get(basename(rootName))
+  )
+
+
+flPaths <- drive_reveal(
+  dFiles,
+  "path"
+)
+
+flSizes <- drive_reveal(
+  dFiles,
+  "size"
+)
+
+flQBU <- drive_reveal(
+  dFiles,
+  "quotaBytesUsed"
+)
+
+fullFileInfo <- flPaths %>% 
+  mutate(
+    fullName = str_c(
+      basename(rootName), "/",
+      path
+    )
+  ) %>% 
+  left_join(
+    flSizes %>% select(id, size),
+    by = "id"
+  ) %>% 
+  left_join(
+    flQBU %>% select(id, quota_bytes_used)
+  )
+
+write_csv(fullFileInfo, file.path(savePath, "AllFilepaths.csv"))
+```
+
+```{r}
+fullFileInfo <- read_csv(file.path(savePath, "AllFilepaths.csv"))
+```
+
+# Reading this Report
+
+This report contains information on files that are currently invalid for Microsoft Sharepoint storage (colloquially known as "Teams"). If using the migration tool offerd by OIT, many of these files will be renamed or changed as part of the migration. Some of these changes may be acceptable to you, but some of them may be quite disruptive. Additionally, filenames that do not meet length requirements will be ignored by the migration tool, creating more work for you in the future. This report should help provide a sense of which violations are present in your files and what the effects of migration might be.
+
+For each section of this report, companion CSV files are generated in the report folder. These CSV files serve two purposes. First, any table presented in this document is limited to 100 rows maximum. There may be more files that contain invalid characteristics than 100, and these will appear in the CSV file. The CSV serves as the "overflow" to the table limits in the printed report. Second, the CSV files are provided as a way to work with the file data more flexibly. Email Chris Mellinger with questions about the files that are created.
+
+Read the rest of this document to decide what you need to rename. If you choose to rename some file, see the Crown recommendations and requirements for filenaming moving forward:
+
+https://docs.google.com/document/d/1eG6H7l44r-I0xXrfNAYlRyHTBDWr64ZjSB-5ZxFoa2I/edit#heading=h.gjdgxs
+
+## File Path Lengths
+
+The section "File Path Lengths" contains information about the lengths of your filepaths, which are limited to 250 characters in Microsoft Sharepoint The length quota applies to the entire pathname, not just the file name. For example, the file "MyDocument.docx" in the subfolder "MySubfolder" is counted as: "MySubfolder/MyDocument.docx", and therefore has a length of 27 characters, not 15. The table in that section always lists the longest 10 files in your Drive. If there are files that exceed the 250 character limit, then up to 100 of those are shown in the table, with the rest saved in the companion CSV file.
+
+Files that exceed the length quota will not copied by the migration tool. \textcolor{blue}{It is strongly recommended to rename files that exceed the length quota.}
+
+## Invalid Characters
+
+The sections "File Names with Illegal Characaters" and "Filenames with Non-Recommended Characters" contain information about files that may be altered by migration. There are two sets of characters we are concerned with. The first set is referred to as "fully illegal," and is comprised of these: 
+
+\textcolor{red}{" * : < > ? \slash \textbackslash |}
+
+Fully illegal characters will be replaced by an underscore by the OIT migration tool. 
+
+The second set is referred to as "non-recomended," and is comprised of:
+
+\textcolor{red}{\textasciitilde \# \% \& . \{ \}}
+
+These characters are not recommended for use, but will migrate unaffected on CU's system. See the Crown naming recommendations (linked above) and the section below for more information.
+
+Leading and trailing periods will be stripped from file folder names, but other periods will remain unaffected. A leading period is a period that is the first character of a file or foler name, and a trailing period is one that appears as the last character of a file or folder name:
+
+> .leading-period
+
+> trailing-period.
+
+It is recommended to replace characters that hold meaning in filenames individually. For example, you may replace ampersands with plus signs. \textcolor{blue}{Because these characters (both sets, fully illegal and not recommended) will be automatically handled, it is not absolutely necessary to change them prior to migration. Know that your filenames will be different if no action is taken, but they will be migrated.}
+
+As before, the in-text table below contains up to 100 filenames with violations, and all of the invalid filenames are saved in a companion CSV. Additional, partially redundant, CSV files are created as companion to this section. For each invalid character that appears in at least one file in your drive, a separate CSV is created with all files that contain that character. These are saved in the folder `InvalidCharacterReports`. These files are provided to ease the consumption of that information and decide which files need attention.
+
+## Invalid Filenames
+
+There are a few filenames that are reserved for other uses in Microsoft Sharepoint. Usually, these files might be created by some automatic process, such as compiling software. If the table in this section contains no entries, then there were no invalid files detected by this script.
+
+> These names aren't allowed for files or folders: **.lock, CON, PRN, AUX, NUL, COM0 - COM9, LPT0 - LPT9, \_vti\_, desktop.ini**, any filename starting with **~$**.
+
+Note that this requirement only applies to the full filename. That is, a name which *contains* one of these strings is not invalid. For example, these are valid filenames:
+
+- CONTACTS.txt
+- data_locker.db
+- PRN_Other.doc
+
+\textcolor{blue}{If these files exist and you do not know why, it is recommended to contact OIT for advice.}
+
+## White Space
+
+This section primarily focuses on leading and trailing white space. The section below contains information on what leading and trailing white space is and how it is identified in this report. Leading and trailing white space will be replaced with underscores by the migration tool. \textcolor{blue}{Because leading/trailing white space will be replaced and will not inhibit the migration process, it is not mandatory to manually change these names. But, like invalid characters, know that your filenames may change when migrated by the tool.}
+
+## Drive Size
+
+The section "Drive Size" below does a quick-and-dirty check on the size of your drive. It counts the bytes used toward Google storage quotas, and as such should include most things contributing to the storage that OIT limits. However, OIT information should supercede that in this report.
+
+# File Path Lengths
+
+```{r}
+flLst <- fullFileInfo %>% pull(fullName)
+
+flLengths <- sapply(
+  flLst,
+  str_length
+)
+
+lenTbl <- tibble(
+  file = names(flLengths),
+  length = flLengths
+)
+
+numTooLong <- sum(lenTbl$length > 250)
+```
+
+```{r}
+lenTbl %>% ggplot(aes(x = length)) +
+  geom_histogram() +
+  geom_vline(xintercept = 250, color = 'red') +
+  labs(
+    caption = str_c(
+      "Number of files over 250 characters: ", numTooLong
+    )
+  ) + ggtitle(
+    "File Path Length Histogram"
+  )
+```
+
+```{r}
+lenTbl %>%
+  arrange(desc(length), file) %>% 
+  head(n = max(numTooLong, 10)) %>% 
+  flextable() %>% 
+  add_header_lines(
+    str_c("Number too long: ", numTooLong, " of ", nrow(lenTbl), " files")
+  ) %>% 
+  width(
+    j = 'file', width = fileColWidth
+  )
+```
+
+# Filenames with Illegal Characters
+
+The table printed in this report contains files with invalid characters: \textcolor{red}{" * : < > ? \slash \textbackslash |} The characters identified in this section will be replaced with underscores by the migration tool. The file `FilepathsWithInvalidCharacters.csv` contains all files flagged by either this or the next section. The column in that csv labelled `Fully Illegal` contains a TRUE value if the character would be altered by the migration process, but contains the value FALSE if the character is not recommended by Crown, but still valid for our version of Sharepoint. To see the filenames that contain each specific invalid character, look at the CSV files in the folder `InvalidCharacterReports`. 
+
+For periods, \textcolor{red}{.}, the migration tool will remove these only if they are leading or trailing characters. That is, they are not allowed if they are the first or last character in a filename or a folder name, and they are trimmed from the filename in such cases by the migration tool. In this section, periods are only checked for as leading or trailing characters. The next section checks for *any* period in a filename.
+
+Note that this script does not check for the presence of forward slashes, as these are used to concatentate file paths in this framework. 
+
+```{r}
+badPaths1 <- lenTbl %>% 
+  mutate(
+    badPaths1 = str_match_all(file, '"|\\*|:|<|>|\\?|\\||\\\\|\\.(?=$|\\/)|(?<=^|\\/)\\.')
+  ) %>% rowwise() %>% 
+  mutate(
+    `Invalid Characters` = str_c(badPaths1, collapse = ""),
+    `Number of Invalid Characters` = length(badPaths1)
+  ) %>% ungroup() %>% 
+  arrange(desc(`Number of Invalid Characters`), file) %>% 
+  filter(`Number of Invalid Characters` > 0) %>% 
+  mutate(
+    `FullyIllegal` = TRUE
+  )
+
+headerLines <- c(
+  str_c("Number of filepaths with illegal characters: ", nrow(badPaths1))
+)
+
+if (nrow(badPaths1) > 100) {
+  headerLines <- c(
+    headerLines,
+    "Too many rows for table; only 100 shown. See FilepathsWithInvalidCharacters.csv"
+  )
+} else if (nrow(badPaths1) <= 100) {
+  headerLines <- c(
+    headerLines,
+    "All filepaths saved in FilepathsWithInvalidCharacters.csv"
+  )
+}
+# print table
+badPaths1 %>% 
+  head(n = 100) %>% 
+  select(file, `Number of Invalid Characters`, `Invalid Characters`) %>% 
+  flextable()%>% 
+  width(
+    j = 'file', width = fileColWidth
+  ) %>% 
+  add_header_lines(
+    headerLines
+  )
+```
+
+# Filenames with Non-Recommended Characters
+
+This section checks for these characters, \textcolor{red}{\textasciitilde \# \% \& . \{ \}}, which are discourage from use. They will migrate without revision and store correctly on Sharepoint. However, they are commonly utilized special characters in certain coding schemes, with the result that some software may operate incorrectly in the presence of these files. In addition, some versions of Sharepoint that are still in use may fail with these characters. If someone you send a file to uses the older Sharepoint version, they will not be able to save or open your file. Note that periods which mark extensions are not flagged here, but periods elsewhere in the filename are flagged.
+
+```{r}
+badPaths2 <- lenTbl %>% 
+  mutate(
+    badPaths2 = str_match_all(file, '\\~|\\#|\\%|\\&|\\{|\\}|\\.(?!\\w+$)')
+  ) %>% rowwise() %>% 
+  mutate(
+    `Invalid Characters` = str_c(badPaths2, collapse = ""),
+    `Number of Invalid Characters` = length(badPaths2)
+  ) %>% ungroup() %>% 
+  arrange(desc(`Number of Invalid Characters`), file) %>% 
+  filter(`Number of Invalid Characters` > 0)
+
+headerLines <- c(
+  str_c("Number of filepaths with invalid characters: ", nrow(badPaths2))
+)
+
+if (nrow(badPaths2) > 100) {
+  headerLines <- c(
+    headerLines,
+    "Too many rows for table; only 100 shown. See FilepathsWithInvalidCharacters.csv"
+  )
+} else if (nrow(badPaths2) <= 100) {
+  headerLines <- c(
+    headerLines,
+    "All filepaths saved in FilepathsWithInvalidCharacters.csv"
+  )
+}
+# print table
+badPaths2 %>% 
+  head(n = 100) %>% 
+  select(file, `Number of Invalid Characters`, `Invalid Characters`) %>% 
+  flextable()%>% 
+  width(
+    j = 'file', width = fileColWidth
+  ) %>% 
+  add_header_lines(
+    headerLines
+  )
+```
+
+```{r}
+badCharacters <- tibble(
+  pattern = str_c(
+    '\\', 
+    str_split('~ " # % & * : < > ? / \\ { | } .', pattern = "\\s")[[1]]
+    ),
+  name = c(
+    "tilda", "quote", "hash", "percent", "ampersand", "star", "colon",
+    "less-than", "greater-than", "question-mark", "forwardslash", "backslash",
+    "left-curly-bracket", "pipe", "right-curly-bracket", "period"
+  )
+)
+
+# Get both sets hopefully without being totally redundant
+badPaths <- full_join(
+  badPaths1 %>% select(file, `Invalid Characters`, FullyIllegal), 
+  badPaths2 %>% select(file, `Invalid Characters`)
+) %>% 
+  mutate(
+    `Fully Illegal` = ifelse(
+      is.na(FullyIllegal),
+      FALSE,
+      FullyIllegal
+    )
+  ) %>% 
+  select(-FullyIllegal)
+
+write_csv(
+  badPaths,
+  file.path(savePath, "FilepathsWithInvalidCharacters.csv")
+)
+
+if (!dir.exists(file.path(savePath, "InvalidCharacterReports"))) {
+  dir.create(file.path(savePath, "InvalidCharacterReports"))
+}
+
+for (i in 1:nrow(badCharacters)) {
+  curPattern <- badCharacters$pattern[i]
+  curName <- badCharacters$name[i]
+  
+  temp <- badPaths %>% 
+    filter(str_detect(`Invalid Characters`, curPattern))
+  
+  if (nrow(temp) > 0) {
+    write_csv(
+      temp,
+      file.path(
+        savePath, 
+        "InvalidCharacterReports", 
+        str_c(curName, ".csv")
+        )
+    )
+  }
+}
+```
+
+# Invalid Filenames
+
+According the MS documentation:
+
+> These names aren't allowed for files or folders: **.lock, CON, PRN, AUX, NUL, COM0 - COM9, LPT0 - LPT9, _vti_, desktop.ini**, any filename starting with **~$**.
+
+For short-term expediency, the following table contains *potentially* invalid filenames. If the strings here appear as part of a larger filename, they may or may not be invalid via MS systems. Check with support staff if there are questionable cases.
+
+```{r}
+badFileNames <- lenTbl %>% 
+  mutate(
+    badFileNames = str_match_all(file, '\\.lock$|CON$|PRN$|AUX$|NUL$|COM[0-9]$|LPT[0-9]$|_vti_$|desktop\\.ini$')
+  ) %>% rowwise() %>% 
+  mutate(
+    `Potentially Invalid Components` = str_c(badFileNames, collapse = ""),
+    `Number of Potentially Invalid Components` = length(badFileNames)
+  ) %>% ungroup() %>% 
+  arrange(desc(`Number of Potentially Invalid Components`), file) %>% 
+  filter(`Number of Potentially Invalid Components` > 0)
+
+headerLines <- c(
+  str_c("Number of potentially invalid filenames: ", nrow(badFileNames))
+)
+write_csv(
+  badFileNames,
+  file.path(savePath, "PotentiallyInvalidFilenames.csv")
+)
+if (nrow(badFileNames) > 100) {
+  headerLines <- c(
+    headerLines,
+    "Too many rows for table; only 100 shown. See PotentiallyInvalidFilenames.csv"
+  )
+} else if (nrow(badFileNames) <= 100) {
+  headerLines <- c(
+    headerLines,
+    "All filepaths saved in PotentiallyInvalidFilenames.csv"
+  )
+}
+# print the table
+badFileNames %>% 
+  head(n = 100) %>% 
+  select(file, `Number of Potentially Invalid Components`, `Potentially Invalid Components`) %>% 
+  flextable() %>% 
+  width(
+    j = 'file', width = fileColWidth
+  ) %>% 
+  add_header_lines(
+    headerLines
+  )
+```
+
+
+# White Space
+
+Leading or trailing white space is not allowed. To help identify leading/trailing white space in files, the following table contains filepaths with a squinting emoji, `-_-` inserted wherever leading/trailing whitespace is detected. For example, this file:
+
+```{r}
+sampleText <- "/SHAREDDRIVE/ Leading White Space File.txt"
+print(sampleText)
+```
+
+contains leading white space just before the word "Leading". It would appear this way in the following table:
+
+```{r}
+print(
+  str_replace_all(
+    sampleText,
+    "(?<=\\/)\\s|\\s(?=\\/)|\\s(?=$)",
+    " -_- "
+  )
+)
+```
+
+These files would be changed by the migration tool by substituting an underscore for the space:
+
+```{r}
+print(
+  str_replace_all(
+    sampleText,
+    "(?<=\\/)\\s|\\s(?=\\/)|\\s(?=$)",
+    "_"
+  )
+)
+```
+
+```{r}
+wsTbl <- lenTbl %>% 
+  mutate(
+    `Leading/Trailing WS` = str_detect(file, "(?<=\\/)\\s|\\s(?=\\/)|\\s(?=$)"),
+    File = str_replace_all(
+    file,
+    "(?<=\\/)\\s|\\s(?=\\/)|\\s(?=$)",
+    " -_- "
+  )
+    #`Any WS` = str_detect(file, "\\s")
+  ) %>% 
+  arrange(desc(`Leading/Trailing WS`), file) %>% 
+  select(File, `Leading/Trailing WS`) %>% 
+  filter(`Leading/Trailing WS`)
+
+#numWS <- sum(wsTbl$`Any WS`)
+numLTWS <- sum(wsTbl$`Leading/Trailing WS`)
+
+write_csv(wsTbl, file.path(savePath, "WhiteSpaceTables.csv"))
+
+headerLines <- c(
+  str_c("Number of paths with leading/trailing white space: ", numLTWS)
+)
+if (nrow(wsTbl) > 100) {
+  headerLines <- c(
+    headerLines,
+    "Too many rows for table; only 100 shown. See WhiteSpaceTables.csv"
+  )
+} else if (nrow(wsTbl <= 100)) {
+  headerLines <- c(
+    headerLines,
+    "All filepaths saved in WhiteSpaceTables.csv"
+  )
+}
+
+wsTbl  %>% 
+  head(n = 100) %>% 
+  flextable() %>% 
+  add_header_lines(
+    headerLines
+  )%>% 
+  width(
+    j = 'File', width = fileColWidth
+  )
+```
+
+# Drive Size
+
+```{r}
+bytes <- sum(as.numeric(fullFileInfo$quota_bytes_used), na.rm = T)
+gb <- bytes / 1e9
+
+str_c(
+  "This drive uses ", round(gb, 2), " gigabytes."
+)
+
+if (gb >= 5) {
+  print("This drive exceeds size limits.")
+} else if (gb < 5) {
+  print("This drive is within the 5GB limit.")
+}
+```
